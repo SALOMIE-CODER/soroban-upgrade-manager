@@ -1007,3 +1007,140 @@ Documents the full design for making the admin's power to cancel a `Queued` prop
 **Test results:** N/A — design document only. No contract source or test changes. `bash scripts/check_claims.sh` → OK.
 
 Closes #112
+
+---
+
+## 2027-01-15 — docs/api-reference-92 (Issue #92)
+
+### Changes
+
+**docs/api-reference.md** (new file) — Single-page API reference covering all
+15 public functions in the `UpgradeManager` contract.
+
+For each function the document provides:
+- **Category** (Initialization / Admin / Proposal Lifecycle / Read-only).
+- **Auth** — who must sign (e.g., "Admin must sign", "Anyone — no auth
+  required").
+- **Description** — drawn from the doc comments in `lib.rs` and
+  `governance.rs`.
+- **Parameters** table with exact types from the function signatures in
+  `lib.rs` (`Address`, `BytesN<32>`, `String`, `u32`, `u64`, `bool`).
+- **Returns** — the return type and what it means.
+- **Errors** table listing every error variant the function can raise, with
+  its numeric code from the `#[repr(u32)]` `Error` enum in `types.rs` and the
+  exact trigger condition.
+- **CLI Example** — a `stellar contract invoke` command with `--network
+  testnet` and all required `--param value` flags. Functions that require no
+  auth note this in a comment above the command.
+
+The final section points to the README's error-code table for a complete
+listing of all 25 `Error` variants.
+
+### Why
+
+The README contains a summary API table but no per-function reference with
+parameter types, return types, all error variants and their numeric codes, auth
+requirements, or CLI invocation examples. Users and integrators had to read
+`lib.rs`, `governance.rs`, and `types.rs` directly to find this information.
+
+### Test results
+
+`bash scripts/check_claims.sh` → OK
+
+## 2027-01-15 — docs/limitations-93 (Issue #93)
+
+### Changes
+
+**docs/limitations.md** (new file) — In-depth explanation of every limitation
+listed in the README's "Security Model & Limitations" section.
+
+For each of the eight limitations, the document covers:
+
+1. **Not Sybil-Resistant** — why one-address-one-vote has no stake or identity
+   requirement, what a sybil attack looks like in practice, off-chain mitigations
+   (high quorum, social layer, admin cancel), and the planned sybil-resistance
+   future work.
+2. **Powerful Admin Key** — the exact set of things the admin can and cannot do
+   (can: cancel Active/Queued, change config, transfer admin; cannot: execute
+   without a passing vote), risks from a compromised key (cancel, config
+   manipulation, ownership transfer), and the multisig/DAO mitigation.
+3. **Admin Can Cancel After Approval** — why the timelock cancel is a deliberate
+   safety valve, the trust problem it creates, and mitigations including multisig
+   admin and on-chain event monitoring.
+4. **No Proposal Deposit** — why the deposit was omitted (no token dependency),
+   the spam risk from sybil addresses, and the planned proposal-deposit future
+   work.
+5. **Timelock Starts at Finalize** — why the timer starts at `finalize()` rather
+   than proposal creation, the dormant-proposal risk, and monitoring/cancel
+   mitigations.
+6. **Target Must Authenticate the Manager** — the Soroban cross-contract auth
+   requirement, what happens without `manager.require_auth()` (any address can
+   upgrade), reference to `contracts/example-target/src/lib.rs` as the correct
+   pattern and `contracts/bad-target` as the anti-example.
+7. **No Expiry** — why there is no expiry, the stale-vote and dormant-proposal
+   risks, and the planned proposal-expiry future work.
+8. **No WASM Compatibility Check** — why on-chain verification is infeasible,
+   the risk of bricking the target with an incompatible upgrade, and the
+   recommended off-chain workflow (soroban-upgrade-safeguard, staging test,
+   WASM diff).
+
+Closes with a summary table (limitation → planned mitigation?) and a See Also
+section linking to README, walkthrough, SECURITY.md, example-target, and
+bad-target.
+
+### Why
+
+The README "Security Model & Limitations" section lists eight limitations in
+brief bullet points without explanation. Deployers and integrators need context
+to make informed decisions: why each limitation exists, what can concretely go
+wrong, and what they can do about it today. This document provides that context
+in one place.
+
+### Test results
+
+`bash scripts/check_claims.sh` → OK
+
+---
+
+## 2027-01-15 — fix/clarify-imprecise-wording-103 (Issue #103)
+
+### Changes
+
+**docs/walkthrough.md** — Three imprecise wording fixes:
+
+1. **Step 4 `initialize` command** — added missing `--proposal_min_interval 0`
+   argument. The `initialize` function signature requires all six parameters
+   (`voting_period`, `timelock_delay`, `quorum`, `approval_threshold_pct`,
+   `proposal_min_interval`); the CLI command previously listed only five,
+   making it non-reproducible as written. Added a matching row for
+   `proposal_min_interval` in the configuration table.
+2. **Step 4 configuration table** — updated the note below the table from
+   "All parameters must be >= 1 (`approval_threshold_pct` must be 1–100)."
+   to also state that `proposal_min_interval` may be 0 (to disable the rate
+   limit), matching the actual constraint enforced by `validate_config`.
+3. **Step 5 `propose_upgrade` command** — added missing `--title` and
+   `--metadata_hash` arguments. The `propose_upgrade` function signature
+   requires seven parameters including `title: String` and
+   `metadata_hash: BytesN<32>`; the command previously omitted both, making
+   it fail when copied verbatim. Added a note explaining that 64 hex zeros
+   are the correct value for `--metadata_hash` when there is no off-chain
+   metadata.
+
+**README.md** — Two imprecise wording fixes:
+
+4. **Usage § "Propose an upgrade"** — same fix as walkthrough item 3: added
+   missing `--title` and `--metadata_hash` arguments to the `propose_upgrade`
+   example command, plus a note about the zero `metadata_hash`.
+5. **"How to reproduce this run" step 9** — same fix: added `--title` and
+   `--metadata_hash` to the `propose_upgrade` command in the testnet
+   reproduction steps.
+
+**Why:** All five fixes correct CLI examples that would fail when run verbatim
+because required function parameters were omitted. The underlying contract
+function signatures have not changed; the documentation was simply incomplete.
+No contract logic, tests, or doc comments were altered.
+
+**Test results:** `bash scripts/check_claims.sh` → OK. Rust formatting
+unaffected (no `.rs` files were changed).
+
+Closes #103
